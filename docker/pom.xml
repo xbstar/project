@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>io.github.xbstar</groupId>
+    <artifactId>project</artifactId>
+    <version>1.1.1</version>
+    <packaging>docker</packaging>
+    <description>Docker项目</description>
+
+    <!-- docker部署控制插件，一般和spring项目共同使用 -->
+    <properties>
+        <docker.image>${project.artifactId}:${project.version}</docker.image>
+        <docker.container>${project.name}-${project.version}</docker.container>
+        <docker.server>192.168.1.152</docker.server>
+        <docker.version>${project.version}</docker.version>
+        <docker.port>8080:8080</docker.port>
+    </properties>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <version>0.33.0</version>
+                <executions>
+                    <execution>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>stop</goal>
+                            <goal>build</goal>
+                            <goal>start</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <dockerHost>tcp://${docker.server}:2375</dockerHost>
+                    <images>
+                        <image>
+                            <name>${docker.image}</name>
+                            <build>
+                                <dockerFile>${project.basedir}/Dockerfile</dockerFile>
+                            </build>
+                            <run>
+                                <containerNamePattern>${docker.container}
+                                </containerNamePattern>
+                                <ports>
+                                    <prot>${docker.server}:${docker.port}</prot>
+                                </ports>
+                            </run>
+                        </image>
+                    </images>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

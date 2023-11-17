@@ -7,149 +7,86 @@
     <artifactId>project</artifactId>
     <version>1.1.1</version>
     <packaging>pom</packaging>
+    <!-- 配置应用参数-->
+    <name>中科西北星模板工程</name>
+    <description>中科西北星内部创建Maven项目的快速依赖模板</description>
+    <url>https://github.com/xbstar/project</url>
 
-    <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.5.6</version>
-    </parent>
+    <!-- 配置项目模块信息-->
+    <modules>
+        <module>spring</module>
+        <module>flink</module>
+        <module>cgreact</module>
+    </modules>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <version>2.5.6</version>
+        </dependency>
+    </dependencies>
 
+    <!-- 部署到中央仓库的部署配置-->
     <profiles>
-        <!-- SpringBoot部署配置-->
         <profile>
-            <id>spring-boot</id>
-            <properties>
-                <spring.main>${project.groupId}.${project.artifactId}.Main</spring.main>
-            </properties>
-            <dependencies>
-                <!-- 作为web应用启动 -->
-                <dependency>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-starter-web</artifactId>
-                    <version>2.5.6</version>
-                </dependency>
-            </dependencies>
-            <build>
-                <plugins>
-                    <!--配置Maven在package生命周期重新打包一个包含SpringBoot运行环境的Jar-->
-                    <plugin>
-                        <groupId>org.springframework.boot</groupId>
-                        <artifactId>spring-boot-maven-plugin</artifactId>
-                        <configuration>
-                            <finalName>${project.build.finalName}</finalName>
-                            <mainClass>${spring.main}</mainClass>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <!-- Webpack编译前端部署配置-->
-        <profile>
-            <id>webpack-build</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>exec-maven-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
-                                <phase>compile</phase>
-                            </execution>
-                        </executions>
-                        <configuration>
-                            <executable>node_modules\.bin\webpack.cmd</executable>
-                            <arguments>
-                                <argument>--path=target/classes/webpack</argument>
-                                <argument>--mode=production</argument>
-                                <argument>--vers=${project.version}</argument>
-                            </arguments>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <!-- Flink 1.16部署配置-->
-        <profile>
-            <id>flink-1.16</id>
-            <dependencies>
-                <!-- 依赖卷心菜框架-->
-                <dependency>
-                    <groupId>com.xbstar</groupId>
-                    <artifactId>xbstar-cabbage</artifactId>
-                    <version>1.1.1</version>
-                </dependency>
-            </dependencies>
-        </profile>
-        <!-- docker部署控制插件，一般和spring项目共同使用 -->
-        <profile>
-            <id>docker-152</id>
-            <properties>
-                <docker.port>8080:8080</docker.port>
-            </properties>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>io.fabric8</groupId>
-                        <artifactId>docker-maven-plugin</artifactId>
-                        <version>0.33.0</version>
-                        <executions>
-                            <execution>
-                                <phase>install</phase>
-                                <goals>
-                                    <goal>stop</goal>
-                                    <goal>build</goal>
-                                    <goal>start</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                        <configuration>
-                            <dockerHost>tcp://192.168.1.152:2375</dockerHost>
-                            <images>
-                                <image>
-                                    <name>${project.name}:${project.version}</name>
-                                    <build>
-                                        <dockerFile>${project.basedir}/Dockerfile</dockerFile>
-                                    </build>
-                                    <run>
-                                        <containerNamePattern>${project.build.finalName}
-                                        </containerNamePattern>
-                                        <ports>
-                                            <prot>${docker.port}</prot>
-                                        </ports>
-                                    </run>
-                                </image>
-                            </images>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <!-- 配置西北星私服，这样才能下载到卷心菜框架-->
-        <profile>
-            <id>nexus-152</id>
-            <repositories>
+            <id>deploy-to-XBX152</id>
+            <distributionManagement>
                 <repository>
                     <id>XBX152</id>
-                    <url>http://192.168.1.152:9999/repository/MAVEN/</url>
-                    <releases>
-                        <enabled>true</enabled>
-                    </releases>
-                    <snapshots>
-                        <enabled>true</enabled>
-                    </snapshots>
+                    <url>http://192.168.1.152:9999/repository/CGMAVEN/</url>
                 </repository>
-            </repositories>
+            </distributionManagement>
+        </profile>
+        <profile>
+            <id>deploy-to-MavenCentral</id>
+            <distributionManagement>
+                <repository>
+                    <id>MavenCentral</id>
+                    <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+                </repository>
+            </distributionManagement>
         </profile>
     </profiles>
 
-
-    <distributionManagement>
-        <repository>
-            <id>MavenCentral</id>
-            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
-    </distributionManagement>
+    <!-- 配置开源协议 -->
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+    <!-- 配置开发者信息 -->
+    <developers>
+        <developer>
+            <name>ChenGuang</name>
+            <email>cheng@ciotc.org</email>
+            <organization>中科西北星</organization>
+            <organizationUrl>http://www.zkxbx.com</organizationUrl>
+        </developer>
+    </developers>
+    <!-- 配置项目源码信息-->
+    <scm>
+        <connection>scm:git:git://github.com/xbstar/project.git</connection>
+        <developerConnection>scm:git:ssh://github.com:xbstar/project.git</developerConnection>
+        <url>https://github.com/xbstar/project</url>
+    </scm>
+    <!-- 项目打包时进行GPG签名的插件配置-->
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>1.5</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>site</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

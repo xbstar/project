@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <!-- 继承父的配置参数-->
+    <parent>
+        <groupId>io.github.xbstar</groupId>
+        <artifactId>project</artifactId>
+        <version>1.1.1</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>io.github.xbstar</groupId>
+    <artifactId>cgreact</artifactId>
+    <version>1.1.1</version>
+    <packaging>pom</packaging>
+    <name>cgreact</name>
+    <description>中科西北星内部创建Maven项目的快速依赖模板</description>
+    <url>https://github.com/xbstar/project</url>
+
+    <!-- 配置CGReact前端项目编译-->
+    <properties>
+        <cgreact.skip>false</cgreact.skip>
+    </properties>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <executions>
+                    <execution>
+                        <id>npm-install</id>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <phase>validate</phase>
+                        <configuration>
+                            <skip>${cgreact.skip}</skip>
+                            <executable>npm</executable>
+                            <arguments>
+                                <argument>install</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>webpack</id>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <phase>compile</phase>
+                        <configuration>
+                            <skip>${cgreact.skip}</skip>
+                            <executable>node_modules\.bin\webpack.cmd</executable>
+                            <arguments>
+                                <argument>--path=target/classes/webpack</argument>
+                                <argument>--mode=production</argument>
+                                <argument>--vers=${project.version}</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

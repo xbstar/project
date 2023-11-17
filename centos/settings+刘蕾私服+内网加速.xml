@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
+    <!-- 配置仓库加速镜像地址 -->
+    <mirrors>
+        <mirror>
+            <id>Local152</id>
+            <name>西北星公司内网环境下私服加速</name>
+            <url>http://192.168.1.152:9999/repository/MAVEN/</url>
+            <mirrorOf>XBX152</mirrorOf>
+        </mirror>
+        <mirror>
+            <id>ALiYunMaven</id>
+            <name>Maven中央仓阿里云镜像加速</name>
+            <url>http://maven.aliyun.com/nexus/content/groups/public/</url>
+            <mirrorOf>central</mirrorOf>
+        </mirror>
+    </mirrors>
+    <!-- 配置所有的仓库下载数据源地址 -->
+    <profiles>
+        <profile>
+            <id>Repository</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <repositories>
+                <repository>
+                    <id>XBX152</id>
+                    <url>http://223.112.44.146:9999/repository/MAVEN/</url>
+                </repository>
+                <repository>
+                    <id>XBX215</id>
+                    <url>http://192.168.1.215:8081/repository/thirdparty-group/</url>
+                </repository>
+                <repository>
+                    <id>central</id>
+                    <url>https://repo.maven.apache.org/maven2/</url>
+                </repository>
+            </repositories>
+        </profile>
+    </profiles>
+</settings>
