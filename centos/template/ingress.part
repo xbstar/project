@@ -1,0 +1,7 @@
+          - path: ${ACCESSPOINT}
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: ${APPLICATION}
+                port:
+                  number: ${APPPORT}

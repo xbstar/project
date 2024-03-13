@@ -1,0 +1,10 @@
+FROM java:8u111-jdk
+MAINTAINER chenguang<cheng@ciotc.org>
+#设置时区
+ENV TZ Asia/Shanghai
+ENV JAVA_TOOL_OPTIONS "-Duser.timezone=Asia/Shanghai"
+#部署应用
+WORKDIR /usr/app
+ADD ./target/${APPJARNAME} /usr/app
+ENTRYPOINT ["sh","-c", "${STARTARGS}"]
+EXPOSE ${APPPORT}

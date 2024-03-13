@@ -1,83 +1,59 @@
-----
-              - name: "xbstar"
-                label: "xbstar"
-                namespace: "kubesphere-devops-worker"
-                nodeUsageMode: "EXCLUSIVE"
-                idleMinutes: 0
-                containers:
-                  - name: "xbstar"
-                    image: "xbstar/centos:latest"
-                  - name: "jnlp"
-                    image: "registry.cn-beijing.aliyuncs.com/kubesphereio/inbound-agent:4.10-2"
-                    args: "^${computer.jnlpmac} ^${computer.name}"
-                    resourceRequestCpu: "50m"
-                    resourceLimitCpu: "500m"
-                    resourceRequestMemory: "400Mi"
-                    resourceLimitMemory: "1536Mi"
-                workspaceVolume:
-                  persistentVolumeClaim:
-                    claimName: devops-workspace
-                    readOnly: false
-                volumes:
-                  - hostPathVolume:
-                      hostPath: "/var/run/docker.sock"
-                      mountPath: "/var/run/docker.sock"
-                  - hostPathVolume:
-                      hostPath: "/var/data/jenkins_maven_cache"
-                      mountPath: "/root/.m2"
-                  - hostPathVolume:
-                      hostPath: "/var/data/jenkins_sonar_cache"
-                      mountPath: "/root/.sonar/cache"
-                yaml: |
-                  spec:
-                    affinity:
-                      nodeAffinity:
-                        preferredDuringSchedulingIgnoredDuringExecution:
-                        - weight: 1
-                          preference:
-                            matchExpressions:
-                            - key: node-role.kubernetes.io/worker
-                              operator: In
-                              values:
-                              - ci
-                    tolerations:
-                    - key: "node.kubernetes.io/ci"
-                      operator: "Exists"
-                      effect: "NoSchedule"
-                    - key: "node.kubernetes.io/ci"
-                      operator: "Exists"
-                      effect: "PreferNoSchedule"
-                    containers:
-                    - name: "xbstar"
-                      resources:
-                        requests:
-                          ephemeral-storage: "1Gi"
-                        limits:
-                          ephemeral-storage: "10Gi"
-                      volumeMounts:
-                      - name: config-volume
-                        mountPath: /usr/app/maven/apache-maven-3.6.3/conf/settings.xml
-                        subPath: settings.xml
-                    volumes:
-                      - name: config-volume
-                        configMap:
-                          name: ks-devops-agent
-                          items:
-                          - key: MavenSetting
-                            path: settings.xml
-                    securityContext:
-                      fsGroup: 1000
-----
-        - name: "maven"
+          - name: "xbstar"
+            label: "xbstar"
+            namespace: "kubesphere-devops-worker"
+            nodeUsageMode: "EXCLUSIVE"
+            idleMinutes: 0
             containers:
-              - name: "maven"
-                image: "registry.cn-beijing.aliyuncs.com/kubesphereio/builder-maven:v3.2.0"
-                command: "cat"
-                args: ""
-                ttyEnabled: true
-                privileged: false
-                resourceRequestCpu: "100m"
-                resourceLimitCpu: "4000m"
-                resourceRequestMemory: "100Mi"
+              - name: "xbstar"
+                image: "xbstar/centos:latest"
                 resourceLimitMemory: "8192Mi"
-
+              - name: "jnlp"
+                image: "registry.cn-beijing.aliyuncs.com/kubesphereio/inbound-agent:4.10-2"
+                args: "^${computer.jnlpmac} ^${computer.name}"
+                resourceLimitMemory: "1536Mi"
+            workspaceVolume:
+              persistentVolumeClaim:
+                claimName: devops-workspace
+                readOnly: false
+            volumes:
+              - hostPathVolume:
+                  hostPath: "/var/run/docker.sock"
+                  mountPath: "/var/run/docker.sock"
+              - hostPathVolume:
+                  hostPath: "/var/data/jenkins_maven_cache"
+                  mountPath: "/root/.m2"
+              - hostPathVolume:
+                  hostPath: "/var/data/jenkins_nodejs_npm_cache"
+                  mountPath: "/root/.npm"
+              - hostPathVolume:
+                  hostPath: "/var/data/jenkins_sonar_cache"
+                  mountPath: "/root/.sonar/cache"
+            yaml: |
+              spec:
+                containers:
+                - name: "xbstar"
+                  volumeMounts:
+                  - name: config-maven
+                    mountPath: /usr/app/maven/apache-maven-3.6.3/conf/settings.xml
+                    subPath: settings.xml
+                  - name: config-npm
+                    mountPath: /usr/app/nodejs/node-v16.15.0-linux-x64/lib/node_modules/npm/npmrc
+                    subPath: npmrc
+                  - name: config-template
+                    mountPath: /usr/app/template
+                volumes:
+                  - name: config-maven
+                    configMap:
+                      name: ks-devops-agent
+                      items:
+                      - key: MavenSetting
+                        path: settings.xml
+                  - name: config-npm
+                    configMap:
+                      name: ks-devops-agent
+                      items:
+                      - key: NpmrcSetting
+                        path: npmrc
+                  - name: config-template
+                    configMap:
+                      name: devops-deploy-template

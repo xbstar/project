@@ -508,7 +508,7 @@
                         <finalName>${spring.jar}</finalName>
                         <mainClass>${spring.main}</mainClass>
                     </configuration>
-                </plugin><!--下面安装 spring-boot-maven-plugin-->
+                </plugin><!--spring-boot-maven-plugin确保生成的JAR文件包含所有依赖项，并且可以独立运行。-->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-shade-plugin</artifactId>

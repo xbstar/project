@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${APPLICATION}
+  annotations:
+    kubesphere.io/description: ${DESCRIPTION}
+  labels:
+    app: ${APPLICATION}
+spec:
+  selector:
+    matchLabels:
+      app: ${APPLICATION}
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ${APPLICATION}
+    spec:
+      containers:
+        - name: ${APPLICATION}
+          image: ${DOCKER}/${APPLICATION}:${VERSION}
+          imagePullPolicy: Always
+          resources:
+            requests:
+              memory: 2Gi

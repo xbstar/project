@@ -1,0 +1,12 @@
+kind: Ingress
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: ${PROJECT}
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 100m
+    kubesphere.io/description: "应用访问路由"
+spec:
+  rules:
+    - host: ${DNS}
+      http:
+        paths:
