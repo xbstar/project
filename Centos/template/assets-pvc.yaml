@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${APPLICATION}
+  labels:
+    app: ${APPLICATION}
+spec:
+  selector:
+    matchLabels:
+      app: ${APPLICATION}
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ${APPLICATION}
+    spec:
+      containers:
+        - name: ${APPLICATION}
+          image: nginx:latest
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: 1Gi
+          volumeMounts:
+            - name: assets
+              readOnly: true
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: assets
+          persistentVolumeClaim:
+            claimName: ${PVCNAME}
