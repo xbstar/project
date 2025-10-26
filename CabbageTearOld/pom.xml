@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.xbstar.hotpot</groupId>
+    <artifactId>cabbage</artifactId>
+    <version>1.1.1</version>
+    <properties>
+        <java.version>1.8</java.version>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+    </properties>
+
+    <dependencies>
+        <!-- Flink运行时环境，使用1.16.0-->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-clients</artifactId>
+            <version>1.16.0</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <!-- 本地FlinkDashboard通过http://localhost:8081访问-->
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-runtime-web</artifactId>
+            <version>1.16.0</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <!-- 依赖log4j打印日志-->
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <version>1.2.17</version>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- Flink Table的Dynamic接口依赖-->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-table-planner_2.12</artifactId>
+            <version>1.16.0</version>
+        </dependency>
+        <!-- Flink CDC底层依赖,需要多引入一个base包，内置了JDBC27直接打包到代码的-->
+        <dependency>
+            <groupId>com.ververica</groupId>
+            <artifactId>flink-sql-connector-mysql-cdc</artifactId>
+            <version>2.3.0</version>
+        </dependency>
+        <dependency>
+            <!--TableAPI需要多引入一个base包-->
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-base</artifactId>
+            <version>1.16.0</version>
+        </dependency>
+        <dependency>
+            <!-- 指定JDBC能够连接MySQL8 -->
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.26</version>
+        </dependency>
+        <!-- 整合DaMeng数据库支持-->
+        <dependency>
+            <groupId>com.dameng</groupId>
+            <artifactId>DmJdbcDriver18</artifactId>
+            <version>8.1.2.141</version>
+        </dependency>
+        <dependency>
+            <!--DaMeng增量Redo日志解析依赖第三方的包，需要打包到代码-->
+            <groupId>com.github.jsqlparser</groupId>
+            <artifactId>jsqlparser</artifactId>
+            <version>4.4</version>
+            <scope>provided</scope>
+        </dependency>
+        <!--整合Hadoop数据湖支持-->
+        <dependency>
+            <!-- Iceberg底层文件存储在hadoop上，因此要整合hadoop-->
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-shaded-hadoop-2-uber</artifactId>
+            <version>2.8.3-10.0</version>
+        </dependency>
+    </dependencies>
+
+    <!--项目编译的配置-->
+    <build>
+        <finalName>cabbage</finalName>
+        <sourceDirectory>src/main/java</sourceDirectory>
+        <plugins>
+            <plugin>
+                <!-- jsql-parse作为源码打包-->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <dependencyReducedPomLocation>
+                        ${project.build.directory}/pom.xml
+                    </dependencyReducedPomLocation>
+                    <artifactSet>
+                        <includes>
+                            <include>com.github.jsqlparser:jsqlparser</include>
+                        </includes>
+                    </artifactSet>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+    <!--项目部署的配置-->
+    <distributionManagement>
+        <repository>
+            <id>XBX152</id>
+            <url>http://192.168.1.152:9999/repository/CGMAVEN/</url>
+        </repository>
+    </distributionManagement>
+</project>
