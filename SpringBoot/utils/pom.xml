@@ -4,11 +4,11 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.xbstar</groupId>
-    <artifactId>spring-http</artifactId>
-    <name>Spring-Http</name>
+    <artifactId>spring-utils</artifactId>
     <version>1.1.1</version>
+    <name>Spring-Utils</name>
     <packaging>jar</packaging>
-    <description>包含使用Spring的默认配置</description>
+    <description>西北星常用Java工具包</description>
     <url>https://github.com/xbstar/project</url>
 
     <properties>
@@ -18,11 +18,6 @@
     </properties>
 
     <dependencies>
-        <dependency>
-            <groupId>com.squareup.okhttp3</groupId>
-            <artifactId>okhttp</artifactId>
-            <version>4.11.0</version>
-        </dependency>
         <dependency><!--为了兼容Hotpot旧代码，返回值仍用Response，底层实现改为OKHTTP了-->
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
@@ -32,29 +27,10 @@
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
             <version>1.2.58</version>
-        </dependency><!-- 整合JSON处理数据包-->
+        </dependency>
     </dependencies>
 
     <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.1</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <dependencyReducedPomLocation>
-                        ${project.build.directory}/pom.xml
-                    </dependencyReducedPomLocation>
-                </configuration>
-            </plugin>
-        </plugins>
+        <sourceDirectory>src</sourceDirectory>
     </build>
 </project>
