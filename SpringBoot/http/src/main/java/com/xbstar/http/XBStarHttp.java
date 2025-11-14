@@ -51,7 +51,7 @@ public class XBStarHttp
 
 	public static void setServerAddress(String address)
 	{
-		XBStarUtils.printVerbose("[XBStarHTTP]设置了默认访问地址：" + address);
+		XBStarUtils.printVerbose("[XBStarHTTP]设置了默认访问地址" + address);
 		ServerAddress = address;
 	}
 
@@ -293,6 +293,14 @@ public class XBStarHttp
 		{
 			return null;
 		}
+	}
+
+	/** 将域名地址转换为谱同地址*/
+	public static String resolveAddress(String url)
+	{
+		URI uri = URI.create(url);
+		if (uri.getScheme() == null) throw new RuntimeException("[XBStarHttp]传入的地址路径不合法:" + url);
+		return uri.getScheme() + "://" + resolveIP(uri.getHost()) + ":" + uri.getPort() + (uri.getPath() == null ? "" : "/" + uri.getPath());
 	}
 
 	/** 自动选择解析策略并解析域名*/
