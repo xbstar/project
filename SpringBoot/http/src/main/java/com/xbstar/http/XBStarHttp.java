@@ -61,13 +61,13 @@ public class XBStarHttp
 		OnErrorPrint = onErrorPrint;
 	}
 
-	public static OkHttpClient client(String url)
+	public static OkHttpClient client(String url, Integer timeout)
 	{
 		/** 配置OKHTTP客户端的请求调用处理和异常捕获*/
 		OkHttpClient.Builder clientBuilder = new OkHttpClient.Builder().addInterceptor(chain -> //配置请求拦截器
 		{
+			if (timeout != null) chain = chain.withConnectTimeout(timeout, TimeUnit.SECONDS);
 			Request originalRequest = chain.request();
-			//Request modifiedRequest = originalRequest.newBuilder().header("Authorization", Authorization).build();
 			try
 			{
 				return chain.proceed(originalRequest);
@@ -78,7 +78,7 @@ public class XBStarHttp
 			} catch (SocketException | SocketTimeoutException e)
 			{
 				ResponseBody body = ResponseBody.create(originalRequest.url() + "联不通", MediaType.parse("text/plain;charset=UTF-8"));
-				return new Response.Builder().protocol(Protocol.HTTP_1_1).request(originalRequest).code(410).body(body).message("服务器联不通").build();
+				return new Response.Builder().protocol(Protocol.HTTP_1_1).request(originalRequest).code(504).body(body).message("服务器访问超时").build();
 			} catch (InterruptedIOException e)
 			{
 				ResponseBody body = ResponseBody.create("IO被中断", MediaType.parse("text/plain;charset=UTF-8"));
@@ -163,7 +163,7 @@ public class XBStarHttp
 	/** 发起HTTPGet请求获取资源信息*/
 	public static ResponseEntity<String> httpGet(String url)
 	{
-		return httpRequest(url, HttpMethod.GET, new HttpHeaders(), "");
+		return httpRequest(url, HttpMethod.GET, new HttpHeaders(), "", null);
 	}
 
 	/** 发起HTTPGet请求获取资源,即使不存在也不报错*/
@@ -171,7 +171,7 @@ public class XBStarHttp
 	{
 		Boolean temp = OnErrorPrint;
 		OnErrorPrint = false;
-		ResponseEntity<String> result = httpRequest(url, HttpMethod.GET, new HttpHeaders(), "");
+		ResponseEntity<String> result = httpRequest(url, HttpMethod.GET, new HttpHeaders(), "", null);
 		OnErrorPrint = temp;
 		return result;
 	}
@@ -179,18 +179,23 @@ public class XBStarHttp
 	/** 发起HTTPGet请求，通过X-check-Exist拓展获取资源存在状态*/
 	public static boolean httpExist(String url)
 	{
-		ResponseEntity response = httpRequest(url, HttpMethod.GET, new HttpHeaders(), "");
+		ResponseEntity response = httpRequest(url, HttpMethod.GET, new HttpHeaders(), "", null);
 		return response.getStatusCode() == HttpStatus.OK ? true : false;
 	}
 
 	/** 发起HTTPPost请求修改或者创建资源*/
 	public static ResponseEntity<String> httpUpdate(String url, HttpMethod method, Object body)
 	{
-		return httpRequest(url, method, new HttpHeaders(), body);
+		return httpRequest(url, method, new HttpHeaders(), body, null);
+	}
+
+	public static ResponseEntity<String> httpUpdate(String url, HttpMethod method, Object body, Integer timeout)
+	{
+		return httpRequest(url, method, new HttpHeaders(), body, timeout);
 	}
 
 	/** 复杂HTTP请求*/
-	public static ResponseEntity<String> httpRequest(String requestURL, HttpMethod requestMethod, HttpHeaders requestHeader, Object requestBody)
+	public static ResponseEntity<String> httpRequest(String requestURL, HttpMethod requestMethod, HttpHeaders requestHeader, Object requestBody, Integer timeout)
 	{
 		// 构造请求地址
 		requestURL = requestURL.startsWith("/") ? ServerAddress + requestURL : requestURL;
@@ -251,7 +256,7 @@ public class XBStarHttp
 		try
 		{
 			// 通过OKHTTP发起请求
-			httpResponse = httpResponse = client(requestURL).newCall(request.build()).execute();
+			httpResponse = httpResponse = client(requestURL, timeout).newCall(request.build()).execute();
 			responseContent = httpResponse.body().string();// 首先解析Content
 		} catch (IOException e)
 		{
@@ -288,7 +293,7 @@ public class XBStarHttp
 		if (!"".equals(Authorization)) request.header("Authorization", Authorization);
 		try
 		{
-			return client(socketURL).newWebSocket(request.build(), handler);
+			return client(socketURL,null).newWebSocket(request.build(), handler);
 		} catch (Exception e)
 		{
 			return null;
@@ -325,7 +330,7 @@ public class XBStarHttp
 		request.get();
 		try
 		{
-			Response response = client("").newCall(request.build()).execute();
+			Response response = client("",null).newCall(request.build()).execute();
 			if (response.code() != 200)
 			{
 				XBStarUtils.printWarning("[XBStarHttp]通过K8SApi获取CoreDNS失败(" + response.code() + "):" + response.message());
