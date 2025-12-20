@@ -2,7 +2,6 @@ package com.xbstar.spring;
 
 import org.springframework.beans.BeansException;
 import org.springframework.beans.TypeMismatchException;
-import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcRegistrations;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -16,7 +15,10 @@ import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.convert.converter.GenericConverter;
 import org.springframework.core.convert.support.GenericConversionService;
 import org.springframework.format.FormatterRegistry;
+import org.springframework.http.MediaType;
+import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.support.ConfigurableWebBindingInitializer;
 import org.springframework.web.context.ContextLoader;
 import org.springframework.web.context.request.NativeWebRequest;
@@ -26,6 +28,7 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.config.annotation.ContentNegotiationConfigurer;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter;
@@ -42,25 +45,23 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Configuration
 @SpringBootApplication
+@RestControllerAdvice
 public abstract class XBStarSpring implements WebMvcConfigurer, WebMvcRegistrations, ApplicationContextAware
 {
-	public boolean xbstarAuthoriseRequest(HttpServletRequest request)
+	@EventListener(ApplicationReadyEvent.class)
+	public void onApplicationReady() throws Exception
+	{
+	}
+
+	public boolean onAuthoriseRequest(HttpServletRequest request)
 	{
 		return true;
-	}
-
-	public void xbstarApplicationReady() throws Exception
-	{
-	}
-
-	@EventListener(ApplicationReadyEvent.class)
-	private void applicationReadyEvent() throws Exception
-	{
-		this.xbstarApplicationReady();
 	}
 
 	@Override
@@ -102,7 +103,7 @@ public abstract class XBStarSpring implements WebMvcConfigurer, WebMvcRegistrati
 				XBStarAuthorise autoAnno = handlerMethod.getBeanType().getAnnotation(XBStarAuthorise.class);
 				autoAnno = autoAnno == null ? handlerMethod.getMethodAnnotation(XBStarAuthorise.class) : autoAnno;
 				if (autoAnno == null) return true;//没有注解声明不用验证
-				return xbstarAuthoriseRequest(request);
+				return onAuthoriseRequest(request);
 			}
 		};
 		// 向SpringMVC注入构造的拦截器
@@ -216,8 +217,7 @@ public abstract class XBStarSpring implements WebMvcConfigurer, WebMvcRegistrati
 				{
 					ConfigurableWebBindingInitializer initializer = (ConfigurableWebBindingInitializer) this.getWebBindingInitializer();
 					GenericConversionService service = (GenericConversionService) initializer.getConversionService();
-					Method getConverter = GenericConversionService.class
-							.getDeclaredMethod("getConverter", TypeDescriptor.class, TypeDescriptor.class);
+					Method getConverter = GenericConversionService.class.getDeclaredMethod("getConverter", TypeDescriptor.class, TypeDescriptor.class);
 					getConverter.setAccessible(true);
 					GenericConverter converter = (GenericConverter) getConverter.invoke(service, sourceType, targetType);
 					converterName = converter.toString().replaceAll(" ", "");
@@ -259,7 +259,7 @@ public abstract class XBStarSpring implements WebMvcConfigurer, WebMvcRegistrati
 		};
 	}
 
-	@Override //自定义转化器修改对日期的处理
+	@Override //自定义Controller接收参数的转换器
 	public void addFormatters(FormatterRegistry registry)
 	{
 		registry.addConverter(new Converter<String, LocalDate>()
@@ -278,5 +278,26 @@ public abstract class XBStarSpring implements WebMvcConfigurer, WebMvcRegistrati
 				return LocalDateTime.parse(source, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 			}
 		});
+	}
+
+	@Override //自定义Controller返回结果的处理器
+	public void extendMessageConverters(List<HttpMessageConverter<?>> converters)
+	{
+		// 去除重复扫描到的Convert
+		Set<Class<?>> set = new HashSet<>();
+		new ArrayList<>(converters).forEach(converter ->
+		{
+			if (set.contains(converter.getClass())) converters.remove(converter);
+			else set.add(converter.getClass());
+		});
+	}
+
+	@Override //配置结果处理器的命中策略，优先匹配返回JSON的处理器
+	public void configureContentNegotiation(ContentNegotiationConfigurer configurer)
+	{
+		configurer.favorPathExtension(false) //不看 .xml / .json 后缀
+				.favorParameter(false) //不看 ?format=json
+				.ignoreAcceptHeader(true) //看 Request请求的Accept 头
+				.defaultContentType(MediaType.APPLICATION_JSON); //完全按照Convert顺序来且优先命中JSON
 	}
 }

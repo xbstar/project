@@ -53,22 +53,17 @@
             </exclusions>
         </dependency><!-- 整合FreeMarker模板处理-->
         <dependency>
-            <groupId>com.alibaba</groupId>
-            <artifactId>fastjson</artifactId>
-            <version>1.2.58</version>
-        </dependency><!-- 整合JSON处理数据包-->
-        <!--        <dependency>-->
-        <!--            <groupId>com.fasterxml.jackson.core</groupId>-->
-        <!--            <artifactId>jackson-databind</artifactId>-->
-        <!--            <version>2.12.5</version>-->
-        <!--        </dependency>-->
+            <groupId>io.github.xbstar</groupId>
+            <artifactId>utils</artifactId>
+            <version>1.1.1</version>
+        </dependency><!-- 整合西北星常用工具方法包-->
     </dependencies>
 
     <build>
-        <sourceDirectory>zensrc</sourceDirectory>
+        <sourceDirectory>src</sourceDirectory>
         <resources>
             <resource>
-                <directory>zensrc/resource</directory>
+                <directory>src/resource</directory>
             </resource>
         </resources>
         <pluginManagement>
