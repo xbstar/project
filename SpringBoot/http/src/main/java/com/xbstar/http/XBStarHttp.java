@@ -16,6 +16,7 @@ import java.net.*;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -230,7 +231,8 @@ public class XBStarHttp
 			{
 				Object val = map.get(key);
 				if (val == null) continue;
-				builder.add(key, val.toString());
+				if (val instanceof Collection) for (Object curVal : ((Collection) val)) builder.add(key, curVal.toString());
+				else builder.add(key, val.toString());
 			}
 			requestBody = builder.build();
 		}
@@ -293,7 +295,7 @@ public class XBStarHttp
 		if (!"".equals(Authorization)) request.header("Authorization", Authorization);
 		try
 		{
-			return client(socketURL,null).newWebSocket(request.build(), handler);
+			return client(socketURL, null).newWebSocket(request.build(), handler);
 		} catch (Exception e)
 		{
 			return null;
@@ -330,7 +332,7 @@ public class XBStarHttp
 		request.get();
 		try
 		{
-			Response response = client("",null).newCall(request.build()).execute();
+			Response response = client("", null).newCall(request.build()).execute();
 			if (response.code() != 200)
 			{
 				XBStarUtils.printWarning("[XBStarHttp]通过K8SApi获取CoreDNS失败(" + response.code() + "):" + response.message());
