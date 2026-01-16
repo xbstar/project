@@ -15,9 +15,9 @@
         <module>Flink/flink-2.0.0</module>
         <module>Flink/flink-1.20.0</module>
         <module>SpringBoot</module>
-        <module>SpringBoot/http</module>
         <module>SpringBoot/jdbc</module>
         <module>SpringBoot/test</module>
+        <module>Deliver</module>
         <module>Utils</module>
     </modules>
 
