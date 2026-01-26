@@ -4,11 +4,11 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.xbstar</groupId>
-    <artifactId>deliver</artifactId>
+    <artifactId>minio</artifactId>
     <version>1.1.1</version>
-    <name>Deliver</name>
+    <name>MinIO</name>
     <packaging>jar</packaging>
-    <description>西北星DAO数据纯ORM框架</description>
+    <description>西北星整合MinIO对象存储框架</description>
     <url>https://github.com/xbstar/project</url>
 
     <properties>
@@ -35,20 +35,5 @@
 
     <build>
         <sourceDirectory>src</sourceDirectory>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <version>3.2.1</version>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
     </build>
 </project>

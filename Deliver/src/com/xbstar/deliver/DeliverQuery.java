@@ -59,7 +59,7 @@ public class DeliverQuery<T extends Enum<?>>
 			String from = map.get(field);
 			if (from.contains(".")) sqlBuilder.append("`" + from.split("\\.")[0] + "`.`" + from.split("\\.")[1] + "`");
 			else sqlBuilder.append("`" + from + "`");
-			if (!field.equals(from)) sqlBuilder.append(" AS `" + field + "`");
+			if (!field.name().equals(from)) sqlBuilder.append(" AS `" + field + "`");
 			if (fieldIterator.hasNext()) sqlBuilder.append(",");
 		}
 		return sqlBuilder.toString();
@@ -136,16 +136,11 @@ public class DeliverQuery<T extends Enum<?>>
 		return " ORDER BY `" + field + "` " + asc_desc + " ";
 	}
 
-	private String limit(Integer index, Integer volume) //生成SQL的Limit子句
+	private String limit(Integer offset, Integer volume) //生成SQL的Limit子句
 	{
-		if (index != null && volume != null) //指定了页码和每页数量需要计算便宜
-		{
-			if (index < 1) index = 1; //保障页不越下界，上界如果越界就查不出任何数据
-			int offset = (index - 1) * volume;
-			return "LIMIT " + offset + "," + volume;
-		}
-		else if (volume != null) return "LIMIT " + volume; //指定了每页数量，没指定第几页，返回第1页的数据
-		else if (index != null) return ""; //没有限定每页数量，但指定要第几页还是返回所有数据
+		if (offset != null && volume != null) return " LIMIT " + offset + "," + volume;
+		else if (volume != null) return " LIMIT " + volume; //指定了每页数量，没指定第几页，返回第1页的数据
+		else if (offset != null) return ""; //没有限定每页数量，但指定要第几页还是返回所有数据
 		else return ""; //啥都没有返回所有数据
 	}
 
@@ -218,15 +213,28 @@ public class DeliverQuery<T extends Enum<?>>
 		return result;
 	}
 
-	public List<Deliver<T>> queryLimit(int limit)
+	public List<Deliver<T>> queryPage(Integer index, Integer limit)
 	{
-		return this.queryPage(null, limit);
+		if (index != null && limit != null) //指定了页码和每页数量需要计算便宜
+		{
+			if (index < 1) index = 1; //保障页不越下界，上界如果越界就查不出任何数据
+			int offset = (index - 1) * limit;
+			return queryLimit(offset, limit);
+		}
+		else if (limit != null) return queryLimit(limit); //指定了每页数量，没指定第几页，返回第1页的数据
+		else if (index != null) return queryLimit(null); //没有限定每页数量，但指定要第几页还是返回所有数据
+		else return queryLimit(null); //啥都没有返回所有数据
 	}
 
-	public List<Deliver<T>> queryPage(Integer index, Integer volume)
+	public List<Deliver<T>> queryLimit(Integer limit)
+	{
+		return this.queryLimit(null, limit);
+	}
+
+	public List<Deliver<T>> queryLimit(Integer offset, Integer limit)
 	{
 		// 开始查询和填充数据
-		String querySQL = select() + from() + where() + group(this.GroupBy) + order(OrderBy[0], OrderBy[1]) + limit(index, volume);
+		String querySQL = select() + from() + where() + group(this.GroupBy) + order(OrderBy[0], OrderBy[1]) + limit(offset, limit);
 		System.out.println(querySQL);
 		List<Deliver<T>> result = new LinkedList<>();
 		Map<T, String> map = ADBTEngine.getADBTFieldMap(ADBTType);
@@ -248,11 +256,33 @@ public class DeliverQuery<T extends Enum<?>>
 		return result;
 	}
 
-	public DeliverPage<T> queryDeliverPage(int index, int volume)
+	public List<String> queryDistinct(T field)
+	{
+		StringBuilder sqlBuilder = new StringBuilder();
+		sqlBuilder.append("SELECT DISTINCT `" + field.name() + "`");
+		sqlBuilder.append(from());
+		sqlBuilder.append(where());
+		System.out.println(sqlBuilder);
+		List<String> result = new ArrayList<>();
+		try (Statement statement = ADBTEngine.getJDBCConnection().createStatement())
+		{
+			ResultSet cursor = statement.executeQuery(sqlBuilder.toString());
+			while (cursor.next()) result.add(cursor.getString(1));
+			cursor.close();
+			return result;
+		} catch (SQLException e)
+		{
+			throw new RuntimeException(e);
+		}
+	}
+
+	public DeliverPage<T> queryDeliverPage(int index, int limit)
 	{
 		DeliverPage<T> result = new DeliverPage<T>();
-		String countSQL = "SELECT COUNT(*) FROM (" + select() + from() + where() + group(this.GroupBy) + ")";//先不要Limit统计出总数量,Orderby对计算没有影响页不用加
-		// 首先计算数量
+		// 获得数据
+		result.data = this.queryPage(index, limit);
+		// 获得总数量
+		String countSQL = "SELECT COUNT(*) FROM (" + select() + from() + where() + group(this.GroupBy) + ") AS TEMP";//先不要Limit统计出总数量,Orderby对计算没有影响页不用加
 		try (Statement statement = ADBTEngine.getJDBCConnection().createStatement())
 		{
 			ResultSet cursor = statement.executeQuery(countSQL);
@@ -262,29 +292,42 @@ public class DeliverQuery<T extends Enum<?>>
 		{
 			throw new RuntimeException(e);
 		}
-		// 然后获得数据
-		result.data = this.queryPage(index, volume);
 		return result;
 	}
 
 	public DeliverQuery<T> eq(T field, Object value)
 	{
-		Object last = Where.size() > 0 ? Where.get(Where.size() - 1) : Bracket.Left;
+		if (value == null) return this;
+		Object last = !Where.isEmpty() ? Where.get(Where.size() - 1) : Bracket.Left;
 		if (last instanceof DeliverQuery.Expression || last == Bracket.Right) Where.add(Logic.AND);
 		String append = "=";
-		if (value == null) append = "is null";
-		else if (value instanceof Number) append += value;
+		if (value instanceof Number) append += value;
 		else append += "'" + value + "'";
 		Where.add(new Expression(field, append));
 		return this;
 	}
 
-	public DeliverQuery<T> ne(T field, Object value)
+	public DeliverQuery<T> isNull(T field)
 	{
 		Object last = !Where.isEmpty() ? Where.get(Where.size() - 1) : Bracket.Left;
 		if (last instanceof DeliverQuery.Expression || last == Bracket.Right) Where.add(Logic.AND);
+		String append = " IS NULL ";
+		Where.add(new Expression(field, append));
+		return this;
+	}
+
+	public DeliverQuery<T> isNotNull(T field)
+	{
+		return this.ne(field, null);
+	}
+
+	public DeliverQuery<T> ne(T field, Object value)
+	{
+		if (value == null) return this;
+		Object last = !Where.isEmpty() ? Where.get(Where.size() - 1) : Bracket.Left;
+		if (last instanceof DeliverQuery.Expression || last == Bracket.Right) Where.add(Logic.AND);
 		String append = "!=";
-		if (value == null) append = "is not null";
+		if (value == null) append = "  IS NOT NULL ";
 		else if (value instanceof Number) append += value;
 		else append += "'" + value + "'";
 		Where.add(new Expression(field, append));
@@ -350,6 +393,19 @@ public class DeliverQuery<T extends Enum<?>>
 		Object last = !Where.isEmpty() ? Where.get(Where.size() - 1) : Bracket.Left;
 		if (last instanceof Logic || last == Bracket.Left) return this;
 		Where.add(Logic.OR);
+		return this;
+	}
+
+	public DeliverQuery<T> groupBy(T field)
+	{
+		this.GroupBy.add(field.name());
+		return this;
+	}
+
+	public DeliverQuery<T> orderBy(T field, boolean asc)
+	{
+		this.OrderBy[0] = field.name();
+		this.OrderBy[1] = asc ? "ASC" : "DESC";
 		return this;
 	}
 

@@ -1,6 +1,13 @@
 package com.xbstar.deliver;
 
-import com.xbstar.deliver.anno.*;
+import com.test.adbt.Janitorial;
+import com.test.adbt.JanitorialView;
+import com.test.adbt.Janitpoint;
+import com.test.adbt.Room;
+import com.xbstar.deliver.anno.LeftJoin;
+import com.xbstar.deliver.anno.PrimaryKey;
+import com.xbstar.deliver.anno.Table;
+import com.xbstar.deliver.anno.View;
 import com.xbstar.types.Column;
 import com.xbstar.utils.ConvertUtils;
 import com.xbstar.utils.EnvUtils;
@@ -11,16 +18,32 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.net.JarURLConnection;
+import java.net.URL;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 
 public class ADBTEngine
 {
+
+	public static void main(String[] args) throws Exception
+	{
+		Deliver<Janitorial> deliver = new Deliver<>(Janitorial.class);
+		deliver.put(Janitorial.id, "B610102J20251229");
+		deliver.inflate().print();
+		deliver.delete();
+		deliver.print();
+	}
+
 	public static String Package = EnvUtils.getConfigFromEnvironment(String.class, "deliver.package");
 	public static String SourceAddress = EnvUtils.getConfigFromEnvironment(String.class, "deliver.source");
 	public static String JDBCAddress = EnvUtils.getConfigFromEnvironment(String.class, "deliver.jdbc");
@@ -28,13 +51,63 @@ public class ADBTEngine
 	public static String Password = EnvUtils.getConfigFromEnvironment(String.class, "deliver.password");
 	public static Connection JDBCConnection;// 持有一个连接到目标数据库的静态连接
 	public static Map<String, List<Column>> TableColumnsMap = new HashMap<>();// 缓存所有的表及其字段
+	public static Set<Class<? extends Annotation>> FromTableAnnotationClassSet = new HashSet<>(); //缓存所有的来源表注解
+
+	static
+	{
+		if (SourceAddress == null) throw new RuntimeException("[Deliver]没有配置deliver.source");
+		PrintUtils.printInfo("[Deliver]读取到配置deliver.source=" + SourceAddress);
+		if (Package == null) throw new RuntimeException("[Deliver]没有配置deliver.package");
+		PrintUtils.printInfo("[Deliver]读取到配置deliver.package=" + Package);
+		try
+		{
+			String packagePath = Package.replace('.', '/');
+			ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+			Enumeration<URL> urls = classLoader.getResources(packagePath);
+			while (urls.hasMoreElements())
+			{
+				URL url = urls.nextElement();
+				if ("file".equals(url.getProtocol()))// ====== 1. 处理 file:（IDE / 本地 classes）======
+				{
+					File dir = new File(url.toURI());
+					for (File file : dir.listFiles())
+					{
+						String name = file.getName();
+						if (!name.endsWith(".class")) continue;
+						String className = Package + "." + name.substring(0, name.length() - 6);
+						Class<?> cls = Class.forName(className);
+						// 获取到的Class判断一下是注解并且以From开头
+						if (cls.isAnnotation() && cls.getSimpleName().startsWith("From")) FromTableAnnotationClassSet.add((Class<? extends Annotation>) cls);
+					}
+				}
+				else if ("jar".equals(url.getProtocol()))// ====== 2. 处理 jar: ======
+				{
+					JarURLConnection conn = (JarURLConnection) url.openConnection();
+					JarFile jar = conn.getJarFile();
+					Enumeration<JarEntry> entries = jar.entries();
+					while (entries.hasMoreElements())
+					{
+						JarEntry jarEntry = entries.nextElement();
+						String name = jarEntry.getName();
+						if (!name.startsWith(packagePath + "/")) continue; //只扫描packagePath
+						if (name.substring(packagePath.length() + 1).contains("/")) continue; // 不扫描子包
+						if (!name.endsWith(".class")) continue; //不是java编译文件不用管
+						// 获取到Class并判断
+						String className = name.substring(0, name.length() - 6).replace('/', '.');
+						Class<?> cls = Class.forName(className);
+						if (cls.isAnnotation() && cls.getSimpleName().startsWith("From")) FromTableAnnotationClassSet.add((Class<? extends Annotation>) cls);
+					}
+				}
+				else throw new RuntimeException("[Deliver]未知的URL类型" + url.getProtocol());
+			}
+		} catch (Exception e)
+		{
+			throw new RuntimeException("扫描 From* 注解失败", e);
+		}
+	}
 
 	public static void generateADBT() throws IOException
 	{
-		if (Package == null) throw new RuntimeException("[Deliver]没有配置deliver.package");
-		PrintUtils.printInfo("[Deliver]读取到配置deliver.package=" + Package);
-		if (SourceAddress == null) throw new RuntimeException("[Deliver]没有配置deliver.source");
-		PrintUtils.printInfo("[Deliver]读取到配置deliver.source=" + SourceAddress);
 		// 计算ADBT的存储文件夹
 		String path = SourceAddress;
 		for (String pa : Package.split("\\.")) path += "/" + pa;
@@ -73,6 +146,22 @@ public class ADBTEngine
 				if (columnIterator.hasNext()) writer.print(",");
 				writer.println();
 			}
+			writer.println("}");
+			writer.close();
+			// 继续生成From注解
+			PrintUtils.printInfo("[Deliver]开始写入注解@From" + fileName);
+			String annoName = "From" + fileName;
+			File annoFile = new File(dir, annoName + ".java");
+			writer = new PrintWriter(new FileWriter(annoFile));
+			writer.println("package " + Package + ";");
+			writer.println();
+			writer.println("import java.lang.annotation.Retention;");
+			writer.println("import java.lang.annotation.RetentionPolicy;");
+			writer.println();
+			writer.println("@Retention(RetentionPolicy.RUNTIME)");
+			writer.println("public @interface " + annoName);
+			writer.println("{");
+			writer.println("\t" + fileName + " value();");
 			writer.println("}");
 			writer.close();
 		}
@@ -152,12 +241,11 @@ public class ADBTEngine
 		return result;
 	}
 
-
-
 	public static <T extends Enum> Map<T, String> getADBTFieldMap(Class<T> enumClass)
 	{
 		// 自动填充ADBT元数据
-		if (isRealTable(enumClass)) inflateTableMetedata(enumClass);
+		boolean isRealTable = isRealTable(enumClass);
+		if (isRealTable) inflateTableMetedata(enumClass);
 		// 通过反射读取到所有的定义字段
 		Map<T, String> declareFieldMap = new LinkedHashMap<>();
 		for (T current : enumClass.getEnumConstants())
@@ -165,9 +253,31 @@ public class ADBTEngine
 			try
 			{
 				Field field = enumClass.getField(current.name());
-				if (field.isAnnotationPresent(From.class)) declareFieldMap.put(current, field.getAnnotation(From.class).value());
-				else declareFieldMap.put(current, current.name());
-			} catch (NoSuchFieldException e)
+				if (isRealTable)
+				{
+					if (field.isAnnotationPresent(com.xbstar.deliver.anno.Field.class))
+					{
+						com.xbstar.deliver.anno.Field fieldAnno = field.getAnnotation(com.xbstar.deliver.anno.Field.class);
+						declareFieldMap.put(current, fieldAnno.value());
+					}
+				}
+				else
+				{
+					for (Class<? extends Annotation> cla : FromTableAnnotationClassSet)
+					{
+						if (!field.isAnnotationPresent(cla)) continue;
+						Annotation annotation = field.getAnnotation(cla);
+						Method value = annotation.getClass().getDeclaredMethod("value");
+						Enum<?> enumField = (Enum<?>) value.invoke(annotation);
+						Table tableAnno = enumField.getClass().getDeclaredAnnotation(Table.class);
+						declareFieldMap.put(current, tableAnno.value() + "." + enumField.name());
+						break;
+					}
+				}
+				if (declareFieldMap.containsKey(current)) continue;
+				// 没有找到From注解或者Field注解，那么直接保存原名称
+				declareFieldMap.put(current, current.name());
+			} catch (Exception e)
 			{
 				throw new RuntimeException(e);
 			}
@@ -195,6 +305,5 @@ public class ADBTEngine
 		}
 		return declarePrimaryKeySet;
 	}
-
 
 }

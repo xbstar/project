@@ -9,6 +9,7 @@
         <module name="spring" />
         <module name="spring-test" />
         <module name="deliver" />
+        <module name="minio" />
         <module name="spring-jdbc" />
         <module name="utils" />
       </profile>

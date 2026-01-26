@@ -1,20 +1,12 @@
 package com.xbstar.spring;
 
-import com.fasterxml.jackson.core.JacksonException;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.ObjectCodec;
-import com.fasterxml.jackson.databind.*;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcRegistrations;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.MethodParameter;
@@ -41,6 +33,7 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter;
 import org.springframework.web.servlet.mvc.support.DefaultHandlerExceptionResolver;
+import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
@@ -54,9 +47,13 @@ import java.lang.reflect.Method;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 @Configuration
+@EnableWebSocket
 @RestControllerAdvice
 @SpringBootApplication
 public abstract class XBStarSpring implements WebMvcConfigurer, WebMvcRegistrations, ApplicationContextAware, WebSocketConfigurer
@@ -128,21 +125,25 @@ public abstract class XBStarSpring implements WebMvcConfigurer, WebMvcRegistrati
 		resolvers.set(resolvers.size() - 1, new DefaultHandlerExceptionResolver()
 		{
 			@Override
-			protected ModelAndView doResolveException(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex)
+			protected ModelAndView doResolveException(HttpServletRequest request, HttpServletResponse response, Object handler, Exception exception)
 			{
-				ModelAndView result = super.doResolveException(request, response, handler, ex);
+				ModelAndView result = super.doResolveException(request, response, handler, exception);
 				if (result != null)
 				{
 					return result;
 				}
-				if (ex instanceof XBStarException)
+				if (exception instanceof XBStarException)
 				{
 					// 特殊处理我们在方法中抛出的异常
-					XBStarException exception = (XBStarException) ex;
-					makeHttpResponseErrorMessage(response, exception.errorCode, exception.errorMessage);
-					return new ModelAndView();
+					XBStarException xbstarException = (XBStarException) exception;
+					makeHttpResponseErrorMessage(response, xbstarException.errorCode, xbstarException.errorMessage);
 				}
-				return null;
+				else
+				{
+					exception.printStackTrace();
+					makeHttpResponseErrorMessage(response, 500, exception.getMessage());
+				}
+				return new ModelAndView();
 			}
 
 			@Override //处理@RequestParam参数没有传为null的错误

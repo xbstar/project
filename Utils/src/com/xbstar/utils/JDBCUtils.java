@@ -228,22 +228,31 @@ public class JDBCUtils
 						Integer length = cursor.getInt("CHARACTER_MAXIMUM_LENGTH");
 						Integer precision = cursor.getInt("NUMERIC_PRECISION");
 						Integer scale = cursor.getInt("NUMERIC_SCALE");
-						column.type = Type.fromMySQLType(type, precision == null ? length : precision, scale);
+						column.type = Type.fromMySQLType(type, precision, scale);
 						//						column.put("sort", cursor.getInt("ORDINAL_POSITION"));
 						column.visual = "VIRTUAL GENERATED".equals(cursor.getString("EXTRA")) || "STORED GENERATED".equals(cursor.getString("EXTRA"));
 						column.comment = cursor.getString("COLUMN_COMMENT");
 						String key = cursor.getString("COLUMN_KEY");//有PRI,MUL,UNI三种可能
-						if (!"".equals(key))
+						if ("PRI".equals(key))
+						{
+							column.primary = true;
+							column.columnIndex = "PRI:PRIMARY";
+						}
+						else if (Set.of("MUL", "UNI").contains(key))
 						{
 							ResultSet keyCur = connection.createStatement().executeQuery("SHOW INDEX FROM `" + table + "` WHERE Column_name = '" + column.field + "'");
 							if (!keyCur.next()) throw new RuntimeException(table + "表中没有找到字段" + column + "的索引");
 							String keyName = keyCur.getString("Key_name");
 							keyCur.close();
+							column.primary = false;
 							column.columnIndex = key + ":" + keyName;
 						}
+						else if (!"".equals(key)) throw new RuntimeException("[JDBCUtils]遗漏的索引类型" + key);
+						else column.primary = false;
 						result.add(column);
 					}
 					cursor.close();
+					break;
 				}
 				default:
 				{

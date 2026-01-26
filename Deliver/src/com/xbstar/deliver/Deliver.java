@@ -3,6 +3,7 @@ package com.xbstar.deliver;
 import com.alibaba.fastjson.JSONObject;
 import com.xbstar.utils.PrintUtils;
 
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
@@ -27,6 +28,7 @@ public class Deliver<T extends Enum<?>>
 		if (pkSet.size() > 1) throw new RuntimeException("[Deliver]" + ADBTType.getSimpleName() + "关联的" + ADBTEngine.getRealTableName(ADBTType) + "是多主键表,需要分别传入所有的主键值");
 		T primaryKey = pkSet.iterator().next();
 		this.PrimaryStore.put(primaryKey, id);
+		this.DeliverStore.put(primaryKey, id);
 	}
 
 	public Deliver(Class<T> adbt, Map<T, String> ids)
@@ -34,7 +36,11 @@ public class Deliver<T extends Enum<?>>
 		this.ADBTType = adbt;
 		if (!ADBTEngine.isRealTable(ADBTType)) throw new RuntimeException("[Deliver]视图数据不能直接初始化");
 		Deliver<T> deliver = new Deliver<>(ADBTType);
-		for (T pk : ids.keySet()) deliver.PrimaryStore.put(pk, ids.get(pk));
+		for (T pk : ids.keySet())
+		{
+			deliver.PrimaryStore.put(pk, ids.get(pk));
+			deliver.DeliverStore.put(pk, ids.get(pk));
+		}
 	}
 
 	public void print()
@@ -68,15 +74,42 @@ public class Deliver<T extends Enum<?>>
 
 	public boolean exist()
 	{
-		return this.inflate();
+		if (!ADBTEngine.isRealTable(ADBTType)) return false; //视图数据是虚拟的不存在
+		if (!this.complete()) return false; // 主键不完备则不存在
+		StringBuilder sqlBuilder = new StringBuilder();
+		Set<T> primarySet = ADBTEngine.getADBTPrimarySet(ADBTType);
+		String tableRealName = ADBTEngine.getRealTableName(ADBTType);
+		sqlBuilder.append("SELECT COUNT(*) FROM `").append(tableRealName);
+		StringBuilder whereBuilder = new StringBuilder();
+		whereBuilder.append("` WHERE ");
+		Iterator<T> primaryIterator = primarySet.iterator();
+		while (primaryIterator.hasNext())
+		{
+			T pk = primaryIterator.next();
+			whereBuilder.append("`").append(pk).append("`='").append(PrimaryStore.get(pk)).append("'");
+			if (primaryIterator.hasNext()) whereBuilder.append(" AND ");
+		}
+		try (Statement statement = ADBTEngine.getJDBCConnection().createStatement())
+		{
+			ResultSet cursor = statement.executeQuery("" + sqlBuilder + whereBuilder);
+			cursor.next();
+			boolean result = cursor.getInt(1) >= 1;
+			cursor.close();
+			if (result) System.out.println("EXISTS " + tableRealName + whereBuilder);
+			else System.out.println("NOTONE " + tableRealName + whereBuilder);
+			return result;
+		} catch (SQLException e)
+		{
+			throw new RuntimeException(e);
+		}
 	}
 
-	public boolean inflate()
+	public Deliver<T> inflate()
 	{
-		if (!this.complete()) return false;
+		if (!this.complete()) return this;
 		// 判断是否有未填充字段
 		Map<T, String> map = ADBTEngine.getADBTFieldMap(ADBTType);
-		if (DeliverStore.keySet().containsAll(map.keySet())) return true;
+		if (DeliverStore.keySet().containsAll(map.keySet())) return this;
 		// 发现存在未填充的字段发起一次查询
 		DeliverQuery<T> query = DeliverQuery.of(ADBTType);
 		for (T key : PrimaryStore.keySet()) query.eq(key, PrimaryStore.get(key));
@@ -89,13 +122,9 @@ public class Deliver<T extends Enum<?>>
 				if (this.DeliverStore.containsKey(key)) continue;
 				this.DeliverStore.put(key, inf.get(key));
 			}
-			return true;
 		}
-		else
-		{
-			PrintUtils.printWarning("[Deliver]" + ADBTType.getSimpleName() + "关联的" + ADBTEngine.getRealTableName(ADBTType) + "表中不存在主键为" + this.PrimaryStore + "的记录");
-			return false;
-		}
+		else PrintUtils.printWarning("[Deliver]" + ADBTType.getSimpleName() + "关联的" + ADBTEngine.getRealTableName(ADBTType) + "表中不存在主键为" + this.PrimaryStore + "的记录");
+		return this;
 	}
 
 	public Boolean complete() //判断主键是否完备
@@ -122,12 +151,24 @@ public class Deliver<T extends Enum<?>>
 		}
 	}
 
-	public void put(T field, Object value)
+	public Deliver<T> cpk(T field, Object value)
 	{
-		this.DeliverStore.put(field, String.valueOf(value));
+		this.DeliverStore.put(field, value == null ? null : String.valueOf(value));
+		// 如果传入的是主键也要一并修改
+		if (value == null) return this;
+		Set<T> primaryKeySet = ADBTEngine.getADBTPrimarySet(ADBTType);
+		if (primaryKeySet.contains(field)) PrimaryStore.put(field, String.valueOf(value));
+		return this;
+	}
+
+	public Deliver<T> put(T field, Object value)
+	{
+		this.DeliverStore.put(field, value == null ? null : String.valueOf(value));
 		// 如果传入的是主键且主键尚未填充则填充
-		Set<String> primaryKeySet = ADBTEngine.getADBTPrimarySet(ADBTType).stream().map(cur -> cur.name()).collect(Collectors.toSet());
+		if (value == null) return this;
+		Set<T> primaryKeySet = ADBTEngine.getADBTPrimarySet(ADBTType);
 		if (primaryKeySet.contains(field) && !PrimaryStore.containsKey(field)) PrimaryStore.put(field, String.valueOf(value));
+		return this;
 	}
 
 	public void attach(String filed, Object value)
@@ -180,65 +221,59 @@ public class Deliver<T extends Enum<?>>
 
 	public Boolean upsert()
 	{
-		if (!complete()) return false;
-		// 处理主键变更的情况
-		boolean primaryKeyChange = false;
-		Set<T> primaryKeySet = ADBTEngine.getADBTPrimarySet(ADBTType);
-		for (T pk : primaryKeySet)
-		{
-			if (PrimaryStore.get(pk).equals(DeliverStore.get(pk))) continue;
-			// 变更的主键的情况，按照语义应该是删除之前的记录并插入当前最新的记录
-			primaryKeyChange = true;
-			this.delete();
-			break;
-		}
-		if (primaryKeyChange) for (T pk : primaryKeySet) PrimaryStore.put(pk, DeliverStore.get(pk));
 		// 开始构建SQL语句
 		Map<T, String> map = ADBTEngine.getADBTFieldMap(ADBTType);
 		StringBuilder sqlBuilder = new StringBuilder();
-		sqlBuilder.append("INSERT INTO `").append(ADBTEngine.getRealTableName(ADBTType)).append("` (");
-		Iterator<String> columnIterator = map.values().iterator();
-		while (columnIterator.hasNext())
+		if (exist())
 		{
-			sqlBuilder.append("`").append(columnIterator.next()).append("`");
-			if (columnIterator.hasNext()) sqlBuilder.append(",");
-		}
-		sqlBuilder.append(") VALUES (");
-		Iterator<T> fieldIterator = map.keySet().iterator();
-		while (fieldIterator.hasNext())
-		{
-			String value = DeliverStore.get(fieldIterator.next());
-			if (value == null) value = "null";
-			else value = "'" + value + "'";
-			sqlBuilder.append(value);
-			if (fieldIterator.hasNext()) sqlBuilder.append(",");
-		}
-		sqlBuilder.append(")");
-		if (!primaryKeySet.isEmpty()) //对于无主键表来说总是新插入一条不会有主键冲突
-		{
-			sqlBuilder.append(" ON CONFLICT (");
-			Iterator<T> pkIterator = primaryKeySet.iterator();
-			while (pkIterator.hasNext())
-			{
-				sqlBuilder.append("`").append(map.get(pkIterator.next())).append("`");
-				if (pkIterator.hasNext()) sqlBuilder.append(",");
-			}
-			sqlBuilder.append(") DO UPDATE SET ");
-			fieldIterator = DeliverStore.keySet().iterator();
+			// 继续构建更新语句
+			sqlBuilder.append("UPDATE `").append(ADBTEngine.getRealTableName(ADBTType)).append("` SET ");
+			Iterator<T> fieldIterator = DeliverStore.keySet().iterator();
 			while (fieldIterator.hasNext())
 			{
 				T field = fieldIterator.next();
-				String value = DeliverStore.get(fieldIterator.next());
-				if (value == null) value = null;
-				else  value = "'" + value + "'";
+				String value = DeliverStore.get(field);
+				if (value != null) value = "'" + value + "'";
 				sqlBuilder.append("`").append(map.get(field)).append("`=").append(value);
 				if (fieldIterator.hasNext()) sqlBuilder.append(",");
 			}
+			sqlBuilder.append(" WHERE ");
+			Set<T> primaryKeySet = ADBTEngine.getADBTPrimarySet(ADBTType);
+			Iterator<T> primaryIterator = primaryKeySet.iterator();
+			while (primaryIterator.hasNext())
+			{
+				T pk = primaryIterator.next();
+				sqlBuilder.append("`" + pk.name() + "`='" + PrimaryStore.get(pk) + "'");
+				if (primaryIterator.hasNext()) sqlBuilder.append(" AND ");
+			}
+		}
+		else
+		{
+			sqlBuilder.append("INSERT INTO `").append(ADBTEngine.getRealTableName(ADBTType)).append("` (");
+			Iterator<String> columnIterator = map.values().iterator();
+			while (columnIterator.hasNext())
+			{
+				sqlBuilder.append("`").append(columnIterator.next()).append("`");
+				if (columnIterator.hasNext()) sqlBuilder.append(",");
+			}
+			sqlBuilder.append(") VALUES (");
+			Iterator<T> fieldIterator = map.keySet().iterator();
+			while (fieldIterator.hasNext())
+			{
+				String value = DeliverStore.get(fieldIterator.next());
+				if (value == null) value = "null";
+				else value = "'" + value + "'";
+				sqlBuilder.append(value);
+				if (fieldIterator.hasNext()) sqlBuilder.append(",");
+			}
+			sqlBuilder.append(")");
 		}
 		System.out.println(sqlBuilder.toString());
 		try (Statement statement = ADBTEngine.getJDBCConnection().createStatement())
 		{
-			return statement.execute(sqlBuilder.toString());
+			boolean result = statement.execute(sqlBuilder.toString());
+			if (result) for (T filed : PrimaryStore.keySet()) PrimaryStore.put(filed, DeliverStore.get(filed)); //可能存在主键变更的情况需要更新同步
+			return result;
 		} catch (SQLException e)
 		{
 			throw new RuntimeException(e);
@@ -284,7 +319,7 @@ public class Deliver<T extends Enum<?>>
 
 	public Map<String, Object> toMap()
 	{
-		this.inflate();
+		if (ADBTEngine.isRealTable(ADBTType)) this.inflate();
 		Map<String, Object> result = new LinkedHashMap<>();
 		result.putAll(this.AttachStore); //Attach优先级最低如果存在同名键会被覆盖
 		for (T key : DeliverStore.keySet()) result.put(key.name(), DeliverStore.get(key)); //将Deliver的数据导出
@@ -296,9 +331,34 @@ public class Deliver<T extends Enum<?>>
 	{
 		Class<T> adbt;
 		try {adbt = (Class<T>) Class.forName(map.get("adbt").toString());} catch (ClassNotFoundException e) {throw new RuntimeException(e);}
-		Deliver<T> result = new Deliver<>(adbt);
-		for (T field : ADBTEngine.getADBTFieldMap(adbt).keySet()) result.put(field, map.get(field.name()));
+		return fromMap(map, adbt);
+	}
+
+	public static <T extends Enum<?>> Deliver<T> fromMap(Map<String, Object> map, Class<T> cla)
+	{
+		Deliver<T> result = new Deliver<>(cla);
+		for (T field : ADBTEngine.getADBTFieldMap(cla).keySet())
+		{
+			Object value = map.get(field.name());
+			if (value == null) continue;
+			result.put(field, value);
+			map.remove(field.name());
+		}
 		result.AttachStore.putAll(map);
+		return result;
+	}
+
+	public static <T extends Enum<?>> Deliver<T> fromJSON(JSONObject json, Class<T> cla)
+	{
+		Deliver<T> result = new Deliver<>(cla);
+		for (T field : ADBTEngine.getADBTFieldMap(cla).keySet())
+		{
+			Object value = json.get(field.name());
+			if (value == null) continue;
+			result.put(field, value);
+			json.remove(field.name());
+		}
+		for (String key : json.keySet()) result.AttachStore.put(key, json.get(key));
 		return result;
 	}
 }

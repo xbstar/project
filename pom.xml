@@ -18,6 +18,7 @@
         <module>SpringBoot/jdbc</module>
         <module>SpringBoot/test</module>
         <module>Deliver</module>
+        <module>MinIO</module>
         <module>Utils</module>
     </modules>
 

@@ -2,6 +2,7 @@ package com.xbstar.utils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.Properties;
 
 public class EnvUtils
@@ -15,9 +16,12 @@ public class EnvUtils
 		{
 			try (InputStream input = EnvUtils.class.getClassLoader().getResourceAsStream("application.properties");)
 			{
-				Properties props = new Properties();
-				props.load(input);
-				config = props.getProperty(key);
+				if(input!=null)
+				{
+					Properties props = new Properties();
+					props.load(new InputStreamReader(input,"UTF-8"));
+					config = props.getProperty(key);
+				}
 			} catch (IOException e)
 			{
 			}

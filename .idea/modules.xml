@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/Deliver/deliver.iml" filepath="$PROJECT_DIR$/Deliver/deliver.iml" />
       <module fileurl="file://$PROJECT_DIR$/西北星项目模版.iml" filepath="$PROJECT_DIR$/西北星项目模版.iml" />
     </modules>
   </component>

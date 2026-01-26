@@ -64,8 +64,10 @@ public class Type
 			case "datetime":
 			{
 				type.apache = "org.apache.flink.table.types.logical.TimestampType";
+				break;
 			}
 			case "bit":
+			case "enum":
 			case "text":
 			case "varchar":
 			case "varbinary":
@@ -100,6 +102,7 @@ public class Type
 			{
 				return fromMySQLType(mysqlType, length, 2);
 			}
+			case "enum":
 			case "text":
 			case "varchar":
 			{
