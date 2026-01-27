@@ -91,32 +91,40 @@ public abstract class XBStarSpring implements WebMvcConfigurer, WebMvcRegistrati
 	@Override // 配置SpringMVC的请求拦截器
 	public void addInterceptors(InterceptorRegistry registry)
 	{
-		// 以匿名内部类的方式实现拦截器
-		HandlerInterceptor interceptor = new HandlerInterceptor()
+		// 配置Deliver拦截器
+		try
+		{
+			Class<?> deliverSpring = Class.forName("com.xbstar.deliver.DeliverSpring");
+			if (deliverSpring.isInstance(this))
+			{
+				Method method = deliverSpring.getMethod("interceptDeliver", InterceptorRegistry.class);
+				method.invoke(this, registry);
+			}
+		} catch (Exception e)
+		{
+			throw new RuntimeException(e);
+		}
+		// 配置全局拦截器
+		registry.addInterceptor(new HandlerInterceptor()
 		{
 			@Override
 			public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception
 			{
-				// 所有接口都要处理response的返回头
+				// 所有接口返回Header无条件补充sprint-url参数
 				response.setHeader("spring-url", request.getRequestURL().toString());
 				// 判断是否拦截到Rest方法
-				if (!(handler instanceof HandlerMethod) || "/error".equals(request.getServletPath()))
-				{
-					// 拦截的不是方法或者是Spring的报错方法不用处理
-					return true;
-				}
+				if (!(handler instanceof HandlerMethod) || "/error".equals(request.getServletPath())) return true;// 拦截的不是方法或者是Spring的报错方法不用处理
+				// 获取到Spring的Controller方法
 				HandlerMethod handlerMethod = (HandlerMethod) handler;
 				String print = ContextLoader.getCurrentWebApplicationContext().getEnvironment().getProperty("logging.xbstar");
 				if ("true".equals(print)) System.out.println(request.getRequestURL()); //打印蓝色的地址出来
-				// 通过反射判断是否标记了注解
+				// 通过反射判断是否标记了XBStarAuthorise注解
 				XBStarAuthorise autoAnno = handlerMethod.getBeanType().getAnnotation(XBStarAuthorise.class);
 				autoAnno = autoAnno == null ? handlerMethod.getMethodAnnotation(XBStarAuthorise.class) : autoAnno;
 				if (autoAnno == null) return true;//没有注解声明不用验证
 				return onAuthoriseRequest(request);
 			}
-		};
-		// 向SpringMVC注入构造的拦截器
-		registry.addInterceptor(interceptor).addPathPatterns("/**");
+		}).addPathPatterns("/**");
 	}
 
 	@Override //改写默认的异常处理器来改写给前端的返回信息

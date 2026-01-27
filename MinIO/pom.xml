@@ -18,6 +18,7 @@
     </properties>
 
     <dependencies>
+        <!-- 底层依赖XBStarUtils-->
         <dependency>
             <groupId>io.github.xbstar</groupId>
             <artifactId>utils</artifactId>

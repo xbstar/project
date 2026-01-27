@@ -37,11 +37,14 @@ public class ADBTEngine
 
 	public static void main(String[] args) throws Exception
 	{
+		getJDBCConnection().setAutoCommit(false);
 		Deliver<Janitorial> deliver = new Deliver<>(Janitorial.class);
-		deliver.put(Janitorial.id, "B610102J20251229");
+		deliver.put(Janitorial.id, "B610103J20260128");
 		deliver.inflate().print();
-		deliver.delete();
-		deliver.print();
+		deliver.put(Janitorial.description, "asdfasfasf");
+		deliver.upsert();
+		getJDBCConnection().rollback();
+		ADBTEngine.getJDBCConnection().setAutoCommit(true);
 	}
 
 	public static String Package = EnvUtils.getConfigFromEnvironment(String.class, "deliver.package");
@@ -59,6 +62,12 @@ public class ADBTEngine
 		PrintUtils.printInfo("[Deliver]读取到配置deliver.source=" + SourceAddress);
 		if (Package == null) throw new RuntimeException("[Deliver]没有配置deliver.package");
 		PrintUtils.printInfo("[Deliver]读取到配置deliver.package=" + Package);
+		if (JDBCAddress == null) throw new RuntimeException("[Deliver]没有配置deliver.jdbc");
+		PrintUtils.printInfo("[Deliver]读取到配置deliver.jdbc=" + JDBCAddress);
+		if (Username == null) throw new RuntimeException("[Deliver]没有配置deliver.username");
+		PrintUtils.printInfo("[Deliver]读取到配置deliver.username=" + Username);
+		if (Password == null) throw new RuntimeException("[Deliver]没有配置deliver.password");
+		PrintUtils.printInfo("[Deliver]读取到配置deliver.username=" + Password);
 		try
 		{
 			String packagePath = Package.replace('.', '/');
@@ -169,7 +178,6 @@ public class ADBTEngine
 
 	public static Connection getJDBCConnection()
 	{
-		if (JDBCAddress == null) throw new RuntimeException("[Deliver]没有配置deliver.jdbc");
 		if (JDBCConnection == null) try {JDBCConnection = DriverManager.getConnection(JDBCAddress, Username, Password);} catch (Exception e) {throw new RuntimeException(e);}
 		return JDBCConnection;
 	}

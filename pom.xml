@@ -3,11 +3,11 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>io.github.xbstar</groupId>
+    <groupId>io.github</groupId>
     <artifactId>project</artifactId>
     <version>1.1.1</version>
     <packaging>pom</packaging>
-    <name>XBStarProject</name>
+    <name>XBStarUtils</name>
     <description>中科西北星内部创建Maven项目的快速依赖模板</description>
     <url>https://github.com/xbstar/project</url>
     <!-- 配置项目模块信息-->
@@ -81,14 +81,6 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>8</source>
-                    <target>8</target>
-                </configuration>
             </plugin>
         </plugins>
     </build>
