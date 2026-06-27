@@ -17,9 +17,9 @@
         <module>SpringBoot</module>
         <module>SpringBoot/jdbc</module>
         <module>SpringBoot/test</module>
-        <module>Deliver</module>
-        <module>MinIO</module>
-        <module>Utils</module>
+<!--        <module>Deliver</module>-->
+<!--        <module>MinIO</module>-->
+<!--        <module>Utils</module>-->
     </modules>
 
     <!-- 部署到中央仓库的部署配置-->
